@@ -1,0 +1,64 @@
+---
+title: "Carseet Data Analysis"
+output: html_notebook
+---
+
+```{r}
+library(ISLR)
+Carseats
+```
+
+
+```{r data-summary, include=FALSE,echo=FALSE}
+# Use Summary() function to produce numerical summary of the variables in the data set
+summary(Carseats)
+str(Carseats)
+```
+
+```{r plots,include=FALSE}
+# We can see from the scatter plot that Price and Sales have a negative correlation, meaning as Price Increases Sales decrease.
+Carseats %>% 
+  ggplot(aes(Price,Sales,color=US)) +
+  geom_point() +
+  geom_smooth(method = "lm",se=FALSE) +
+  ggtitle("Sales vs Price By US") +
+  theme_minimal() # moderate negative correlation
+
+Carseats %>% 
+  ggplot(aes(Price,Sales,color=Urban)) +
+  geom_point() +
+  geom_smooth(method = "lm",se=FALSE) +
+  ggtitle("Sales vs Price By Urban") +
+  theme_minimal() # moderate negative correlation
+```
+
+```{r Simple-Analysis}
+carseats_lm <- lm(Sales~Price+US+Urban,data=Carseats)
+carseats_lm %>% summary() # Urban not sig
+
+carseats_lm2 <- lm(Sales~Price+US,data=Carseats) 
+
+carseats_lm2 %>% summary() # *(Removed Urban), all sig
+confint(carseats_lm2)      # confidence intervals
+plot(carseats_lm2)         # Model Assumptions are met
+```
+
+```{r CV-Analysis, include=FALSE,echo=FALSE}
+folds <- vfold_cv(Carseats, p=0.7, strata=Sales)
+
+rec <- recipe(Sales ~ Price + US, data=Carseats) %>% 
+  step_dummy(all_nominal())
+
+lm_spec <- linear_reg() %>% 
+  set_engine("lm")
+
+lm_wf <- workflow() %>% 
+  add_recipe(rec) %>% 
+  add_model(lm_spec) 
+
+fit <- lm_wf %>% 
+  fit_resamples(resamples=folds)
+
+# Model Results (RMSE)
+fit %>% collect_metrics()
+```
